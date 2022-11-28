@@ -153,7 +153,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f7754e087e51cfa4eacdb66ca3c4a80b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  camera: {fileID: 279927017380538568}
+  cam: {fileID: 279927017380538568}
   isHead: 0
 --- !u!1 &6062683842752246897
 GameObject:
@@ -310,7 +310,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f7754e087e51cfa4eacdb66ca3c4a80b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  camera: {fileID: 279927017380538568}
+  cam: {fileID: 279927017380538568}
   isHead: 1
 --- !u!1 &8281441500213120525
 GameObject:

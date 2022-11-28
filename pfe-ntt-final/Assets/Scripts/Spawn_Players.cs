@@ -23,7 +23,7 @@ public class Spawn_Players : MonoBehaviour
 
             if(!done1){
                 PhotonNetwork.Instantiate( VR_player.name , new Vector3(0f, 0f,0f), transform.rotation * Quaternion.Euler (0f, 0f, 0f));
-                Instantiate(Teletransport, new Vector3(0, -2f, 0), Quaternion.identity);
+                Instantiate(Teletransport, new Vector3(0f, 0f, 0f), Quaternion.identity);
                 print("spawn");
             }
             done1 = true;
