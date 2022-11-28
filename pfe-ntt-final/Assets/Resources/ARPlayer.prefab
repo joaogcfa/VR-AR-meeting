@@ -437,6 +437,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: ARCamera
       objectReference: {fileID: 0}
+    - target: {fileID: 8161816712868008936, guid: 97c3a3447c29d1c4190e9e3130e17ee6, type: 3}
+      propertyPath: m_CullingMask.m_Bits
+      value: 695
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 97c3a3447c29d1c4190e9e3130e17ee6, type: 3}
 --- !u!1 &279927017380538568 stripped
