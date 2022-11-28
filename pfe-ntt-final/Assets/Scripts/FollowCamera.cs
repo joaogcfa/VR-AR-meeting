@@ -5,7 +5,7 @@ using Photon.Pun;
 
 public class FollowCamera : MonoBehaviour
 {
-    public GameObject camera;
+    public GameObject cam;
     public bool isHead;
     private Vector3 pos;
 
@@ -25,13 +25,13 @@ public class FollowCamera : MonoBehaviour
 
         if (this.view.IsMine){
             if(isHead){
-                pos = new Vector3(camera.transform.position.x,camera.transform.position.y,camera.transform.position.z);
-                this.transform.rotation = camera.transform.rotation;  //Quaternion.Euler(transform.rotation.x, transform.rotation.y, camera.transform.rotation.x);
+                pos = new Vector3(cam.transform.position.x,cam.transform.position.y,cam.transform.position.z);
+                this.transform.rotation = cam.transform.rotation;  //Quaternion.Euler(transform.rotation.x, transform.rotation.y, camera.transform.rotation.x);
                 this.transform.position = pos;
             }
             else{
-                pos = new Vector3(camera.transform.position.x,camera.transform.position.y - 0.5f,camera.transform.position.z);
-                this.transform.rotation = Quaternion.Euler(this.transform.eulerAngles.x, camera.transform.eulerAngles.y, this.transform.eulerAngles.z);
+                pos = new Vector3(cam.transform.position.x,cam.transform.position.y - 0.5f,cam.transform.position.z);
+                this.transform.rotation = Quaternion.Euler(this.transform.eulerAngles.x, cam.transform.eulerAngles.y, this.transform.eulerAngles.z);
                 this.transform.position = pos;
             }
 

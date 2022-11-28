@@ -5,6 +5,7 @@ using UnityEngine;
 public class ChildCount : MonoBehaviour
 {
     public int childCount;
+    public int totalTriangles;
     void Start()
     {
         
@@ -14,5 +15,9 @@ public class ChildCount : MonoBehaviour
     void Update()
     {
         childCount = this.transform.childCount;
+        totalTriangles = 0;
+        foreach(Transform child in transform){
+            totalTriangles += (child.GetComponent<MeshFilter>().mesh.GetTriangles(0).Length)/3;
+        }
     }
 }
