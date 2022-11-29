@@ -128,7 +128,7 @@ public class GetMeshVertexWS : MonoBehaviour {
     void Start() {
         // ip ML1 = ws://192.168.43.34:8080
         //ip pc = ws://192.168.43.150:8080
-        String serverAddress = "ws://192.168.43.150:8080";
+        String serverAddress = "ws://192.168.43.34:8080";
 
         // SERVER
     #if UNITY_LUMIN
