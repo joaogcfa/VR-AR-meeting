@@ -95,6 +95,8 @@ public class GetMeshVertexWS : MonoBehaviour {
 
     public Thread threadMeshJob;
 
+    public Thread threadMeshJobReserve;
+
     public WebSocketServer wssv;
 
     public WebSocketSessionManager SessionManager;
@@ -207,20 +209,37 @@ public class GetMeshVertexWS : MonoBehaviour {
 
                 if(HashMap.ContainsKey(meshName)) {
                     if(!HashMap[meshName].IsRunning) {
-                        
 
-                        subMeshes newSubmesh;
+                        try {
+                            subMeshes newSubmesh;
 
-                        newSubmesh.verticesSubMesh = tempverticesArray;
-                        newSubmesh.trianglesSubMesh = TrianglesArray;
-                        newSubmesh.IsRunning = true;
-                        newSubmesh.threadJob = HashMap[meshName].threadJob;
-                        newSubmesh.task = 1;
+                            newSubmesh.verticesSubMesh = tempverticesArray;
+                            newSubmesh.trianglesSubMesh = TrianglesArray;
+                            newSubmesh.IsRunning = true;
+                            newSubmesh.threadJob = HashMap[meshName].threadJob;
+                            newSubmesh.task = 1;
 
-                        HashMap[meshName] = newSubmesh;
-                        
-                        HashMap[meshName].threadJob.Abort();
-                        HashMap[meshName].threadJob.Start(meshName);
+                            HashMap[meshName] = newSubmesh;
+                            
+                            HashMap[meshName].threadJob.Start(meshName);
+                        }
+                        catch (Exception msg) {
+                            print("Thread ja iniciada: " + msg);
+                            HashMap[meshName].threadJob.Abort();
+
+                            threadMeshJobReserve = new Thread(threadJobFunction);
+
+                            subMeshes newSubmesh;
+                            newSubmesh.verticesSubMesh = tempverticesArray;
+                            newSubmesh.trianglesSubMesh = TrianglesArray;
+                            newSubmesh.IsRunning = true;
+                            newSubmesh.threadJob = threadMeshJobReserve;
+                            newSubmesh.task = 3;
+
+                            HashMap[meshName] = newSubmesh;
+
+                            threadMeshJobReserve.Start(meshName);
+                        }
                     }
                 }
 
@@ -254,19 +273,36 @@ public class GetMeshVertexWS : MonoBehaviour {
             int task = 2;
 
             if(HashMap.ContainsKey(meshName) && !HashMap[meshName].IsRunning && !stopAllAtt) {
+                try {
+                    subMeshes newSubmesh;
 
-                subMeshes newSubmesh;
+                    newSubmesh.verticesSubMesh = verticesArray;
+                    newSubmesh.trianglesSubMesh = TrianglesArray;
+                    newSubmesh.IsRunning = true;
+                    newSubmesh.threadJob = HashMap[meshName].threadJob;
+                    newSubmesh.task = task;
 
-                newSubmesh.verticesSubMesh = verticesArray;
-                newSubmesh.trianglesSubMesh = TrianglesArray;
-                newSubmesh.IsRunning = true;
-                newSubmesh.threadJob = HashMap[meshName].threadJob;
-                newSubmesh.task = task;
+                    HashMap[meshName] = newSubmesh;
+                    
+                    HashMap[meshName].threadJob.Start(meshName);
+                }
+                catch (Exception msg) {
+                    print("Thread ja iniciada: " + msg);
+                    HashMap[meshName].threadJob.Abort();
 
-                HashMap[meshName] = newSubmesh;
-                
-                HashMap[meshName].threadJob.Abort();
-                HashMap[meshName].threadJob.Start(meshName);
+                    threadMeshJobReserve = new Thread(threadJobFunction);
+
+                    subMeshes newSubmesh;
+                    newSubmesh.verticesSubMesh = verticesArray;
+                    newSubmesh.trianglesSubMesh = TrianglesArray;
+                    newSubmesh.IsRunning = true;
+                    newSubmesh.threadJob = threadMeshJobReserve;
+                    newSubmesh.task = 3;
+
+                    HashMap[meshName] = newSubmesh;
+
+                    threadMeshJobReserve.Start(meshName);
+                }
             }
         };
 
@@ -350,7 +386,9 @@ public class GetMeshVertexWS : MonoBehaviour {
                         + task
                     );
 
-                    if (initialMeshesReceived  == initialMeshesToReceive - 1) {
+                    initialMeshesReceived++;
+
+                    if (initialMeshesReceived  == initialMeshesToReceive) {
                         ws.Send("ResumeSending");
                     }
 
@@ -476,6 +514,20 @@ public class GetMeshVertexWS : MonoBehaviour {
                 }
                 catch (Exception msg) {
                     print("Thread ja iniciada: " + msg);
+                    HashMap[meshName].threadJob.Abort();
+
+                    threadMeshJobReserve = new Thread(threadJobFunction);
+
+                    subMeshes newSubmesh;
+                    newSubmesh.verticesSubMesh = tempverticesArray;
+                    newSubmesh.trianglesSubMesh = TrianglesArray;
+                    newSubmesh.IsRunning = true;
+                    newSubmesh.threadJob = threadMeshJobReserve;
+                    newSubmesh.task = 3;
+
+                    HashMap[meshName] = newSubmesh;
+
+                    threadMeshJobReserve.Start(meshName);
                 }
                 
             }
@@ -556,7 +608,6 @@ public class GetMeshVertexWS : MonoBehaviour {
             meshObj.GetComponent<Renderer>().material = white_material;
         }
         else if (receivedSubmeshesList[0].task == 3) {
-            initialMeshesReceived++;
             meshObj.GetComponent<Renderer>().material = green_material;
         }
         else {

@@ -431,8 +431,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   white_material: {fileID: 2100000, guid: 6ece7448c6616ae42b798f6b386e5f6b, type: 2}
-  red_material: {fileID: 2100000, guid: 8c7a5e44ad74b104f91332399459bf03, type: 2}
-  green_material: {fileID: 2100000, guid: e0165a0ce8794bd479fc78981b591800, type: 2}
+  red_material: {fileID: 2100000, guid: 6ece7448c6616ae42b798f6b386e5f6b, type: 2}
+  green_material: {fileID: 2100000, guid: 6ece7448c6616ae42b798f6b386e5f6b, type: 2}
   Mapper: {fileID: 5529793187852878989}
   meshingNodesObject: {fileID: 338774032}
 --- !u!1001 &700741135
@@ -687,7 +687,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5529793189095024744, guid: 96c5527edc74b694395d4b019bfa2a74, type: 3}
       propertyPath: m_Layer
-      value: 0
+      value: 8
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 96c5527edc74b694395d4b019bfa2a74, type: 3}
