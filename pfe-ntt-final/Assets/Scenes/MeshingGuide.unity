@@ -430,9 +430,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6cbc52f33fa3b644c8aedee0f5aade68, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  white_material: {fileID: 2100000, guid: 6ece7448c6616ae42b798f6b386e5f6b, type: 2}
-  red_material: {fileID: 2100000, guid: 6ece7448c6616ae42b798f6b386e5f6b, type: 2}
-  green_material: {fileID: 2100000, guid: 6ece7448c6616ae42b798f6b386e5f6b, type: 2}
+  white_material: {fileID: 2100000, guid: 2107b50b0ae01cc48b5d301d5694e708, type: 2}
+  red_material: {fileID: 2100000, guid: 2107b50b0ae01cc48b5d301d5694e708, type: 2}
+  green_material: {fileID: 2100000, guid: 2107b50b0ae01cc48b5d301d5694e708, type: 2}
   Mapper: {fileID: 5529793187852878989}
   meshingNodesObject: {fileID: 338774032}
 --- !u!1001 &700741135
