@@ -26,6 +26,15 @@ using System.IO;
 // Servico teste chamado Laputa
 public class Laputa : WebSocketBehavior {
     protected override void OnMessage(MessageEventArgs e) {
+
+        if (e.Data == "SendAll") {
+            GetMeshVertexWS.stopAllAtt = true;
+            GetMeshVertexWS.startGetMeshes = true;
+        }
+        else {
+            GetMeshVertexWS.stopAllAtt = false;
+        }
+
         Debug.Log("Msg received!");
     }
 
@@ -41,8 +50,8 @@ public class GetMeshVertexWS : MonoBehaviour {
     public struct subMeshes {
         public Vector3[] verticesSubMesh;
         public int[] trianglesSubMesh;
-        public bool IsAlive;
-        public bool hasJob;
+        public bool IsRunning;
+        public Thread threadJob;
         public int task;
     }
 
@@ -55,13 +64,16 @@ public class GetMeshVertexWS : MonoBehaviour {
         public int task;
     }
 
+    public static bool stopAllAtt = false;
+    public static bool startGetMeshes = false;
+
     IDictionary<string, subMeshes> HashMap = new Dictionary<string, subMeshes>();
 
     List<receivedSubMeshes> receivedSubmeshesList;
 
+    private int initialMeshesToReceive;
     private int initialMeshesToSend;
-    
-    private int initialMeshesSent;
+    private int initialMeshesReceived;
 
     private int task;
 
@@ -119,9 +131,14 @@ public class GetMeshVertexWS : MonoBehaviour {
         // SERVER
     #if UNITY_LUMIN
 
-        InvokeRepeating("MeshSend", 1.0f, 0.5f);
-        Invoke("sendActualMeshes", 10.0f);
+        // InvokeRepeating("MeshSend", 1.0f, 0.5f);
+        // Invoke("sendActualMeshes", 10.0f);
         // InvokeRepeating("sendActualMeshes", 10.0f, 60.0f);
+
+        // initialMeshesToReceive = 1;
+        // initialMeshesReceived = 1;
+
+
 
         try {
             wssv = new WebSocketServer(serverAddress);
@@ -130,6 +147,7 @@ public class GetMeshVertexWS : MonoBehaviour {
             wssv.Start();
 
             SessionManager = wssv.WebSocketServices["/Laputa"].Sessions;
+            print("Service created!");
         }
         catch (Exception e) {
             print(e.Message);
@@ -148,17 +166,22 @@ public class GetMeshVertexWS : MonoBehaviour {
             // getting triangles
             int[] TrianglesArray = actualMesh.GetTriangles(0);
 
-            if(!HashMap.ContainsKey(meshName) && initialMeshesSent >= initialMeshesToSend) {
+            if(!HashMap.ContainsKey(meshName) && !stopAllAtt) {
+
+                threadMeshJob = new Thread(threadJobFunction);
 
                 subMeshes newSubmesh;
 
                 newSubmesh.verticesSubMesh = tempverticesArray;
                 newSubmesh.trianglesSubMesh = TrianglesArray;
-                newSubmesh.IsAlive = false;
-                newSubmesh.hasJob = true;
+                newSubmesh.IsRunning = true;
+                newSubmesh.threadJob = threadMeshJob;
                 newSubmesh.task = 0;
 
                 HashMap.Add(meshName, newSubmesh);
+
+                //threadMeshJob.Abort();
+                threadMeshJob.Start(meshName);
             }   
         };
 
@@ -180,23 +203,43 @@ public class GetMeshVertexWS : MonoBehaviour {
             // getting triangles
             TrianglesArray = actualMesh.GetTriangles(0);
 
-            subMeshes newSubmesh;
+            if (!stopAllAtt) {
 
-            newSubmesh.verticesSubMesh = tempverticesArray;
-            newSubmesh.trianglesSubMesh = TrianglesArray;
-            newSubmesh.hasJob = true;
-            newSubmesh.task = 1;
-
-            if (initialMeshesSent >= initialMeshesToSend) {
                 if(HashMap.ContainsKey(meshName)) {
-                    newSubmesh.IsAlive = HashMap[meshName].IsAlive;
-                    HashMap[meshName] = newSubmesh;
+                    if(!HashMap[meshName].IsRunning) {
+                        
+
+                        subMeshes newSubmesh;
+
+                        newSubmesh.verticesSubMesh = tempverticesArray;
+                        newSubmesh.trianglesSubMesh = TrianglesArray;
+                        newSubmesh.IsRunning = true;
+                        newSubmesh.threadJob = HashMap[meshName].threadJob;
+                        newSubmesh.task = 1;
+
+                        HashMap[meshName] = newSubmesh;
+                        
+                        HashMap[meshName].threadJob.Abort();
+                        HashMap[meshName].threadJob.Start(meshName);
+                    }
                 }
 
                 else {
-                    newSubmesh.IsAlive = false;
-                    HashMap.Add(meshName, newSubmesh);
                     print("Tentou editar malha antes de criar!");
+
+                    threadMeshJob = new Thread(threadJobFunction);
+
+                    subMeshes newSubmesh;
+
+                    newSubmesh.verticesSubMesh = tempverticesArray;
+                    newSubmesh.trianglesSubMesh = TrianglesArray;
+                    newSubmesh.IsRunning = true;
+                    newSubmesh.threadJob = threadMeshJob;
+                    newSubmesh.task = 1;
+
+                    HashMap.Add(meshName, newSubmesh);
+                    //threadMeshJob.Abort();
+                    threadMeshJob.Start(meshName);
                 }
             }
 
@@ -210,21 +253,27 @@ public class GetMeshVertexWS : MonoBehaviour {
             int[] TrianglesArray = new int[0];
             int task = 2;
 
-            subMeshes newSubmesh;
+            if(HashMap.ContainsKey(meshName) && !HashMap[meshName].IsRunning && !stopAllAtt) {
 
-            newSubmesh.verticesSubMesh = verticesArray;
-            newSubmesh.trianglesSubMesh = TrianglesArray;
-            newSubmesh.IsAlive = false;
-            newSubmesh.hasJob = true;
-            newSubmesh.task = 2;
+                subMeshes newSubmesh;
 
-            if(HashMap.ContainsKey(meshName) && initialMeshesSent >= initialMeshesToSend) {
+                newSubmesh.verticesSubMesh = verticesArray;
+                newSubmesh.trianglesSubMesh = TrianglesArray;
+                newSubmesh.IsRunning = true;
+                newSubmesh.threadJob = HashMap[meshName].threadJob;
+                newSubmesh.task = task;
+
                 HashMap[meshName] = newSubmesh;
+                
+                HashMap[meshName].threadJob.Abort();
+                HashMap[meshName].threadJob.Start(meshName);
             }
-
         };
 
-        
+    if (startGetMeshes) {
+        startGetMeshes = false;
+        Invoke("sendActualMeshes", 1.0f);
+    }
 
 
     #endif
@@ -232,33 +281,42 @@ public class GetMeshVertexWS : MonoBehaviour {
         // CLIENT
     #if UNITY_STANDALONE_WIN
 
+        initialMeshesToReceive = 0;
+        initialMeshesReceived = 0;
+
         // Funcao que checa se há malhas a serem criadas
         // InvokeRepeating("MeshCreation", 5.0f, 0.01f);
 
         receivedSubmeshesList = new List<receivedSubMeshes>();
 
-        thread = new Thread(() =>
-        {
+        thread = new Thread(() => {
             print("Thread Entered");
 
             // Cria o client
             ws = new WebSocket(serverAddress + "/Laputa");
 
-            while (ws.IsAlive == false)
-            {
+            while (ws.IsAlive == false) {
                 ws.Connect();
                 print("Trying Connection...");
                 Thread.Sleep(2000);
             }
             print("Connected");
 
+            ws.Send("SendAll");
+
             // Assim que o client recebe uma mensagem executa:
             ws.OnMessage += (sender, e) => {
                 try {
-                    print("recebendo");
+                    // print("recebendo");
                     byte[][] receivedArray = new byte[4][];
                     receivedSubMeshes receivedMesh;
+
                     object obj = ByteArrayToObject(e.RawData);
+
+                    if (obj.GetType().Equals(typeof(System.Int32))) {
+                        initialMeshesToReceive = (System.Int32)obj;
+                    }
+
                     receivedArray = obj as byte[][];
 
                     string meshName = ByteArrayToObject(receivedArray[0]) as string;
@@ -292,6 +350,10 @@ public class GetMeshVertexWS : MonoBehaviour {
                         + task
                     );
 
+                    if (initialMeshesReceived  == initialMeshesToReceive - 1) {
+                        ws.Send("ResumeSending");
+                    }
+
                     receivedSubmeshesList.Add(receivedMesh);
                 }
                 catch (Exception error) {
@@ -309,87 +371,70 @@ public class GetMeshVertexWS : MonoBehaviour {
     }
 
     void Update() { 
+        #if UNITY_LUMIN
+        if (startGetMeshes) {
+            startGetMeshes = false;
+            Invoke("sendActualMeshes", 1.0f);
+        }
+        #endif
+        print(initialMeshesReceived+"/"+initialMeshesToReceive);
         #if UNITY_STANDALONE_WIN
                 MeshCreation();
         #endif
     }
 
 #if UNITY_LUMIN
-    void MeshSend() {
 
-        if (initialMeshesSent < initialMeshesToSend) {
-            print("Enviado: " + initialMeshesSent + " de " + initialMeshesToSend);
+    public void threadJobFunction(object thisMeshName) {
+
+        string meshName = thisMeshName as String;
+        // Array de bytes a ser enviada com os dados das malhas
+        byte[][] requestArray = new byte[4][];
+
+        SerializableVector3[] verticesArray = new SerializableVector3[HashMap[meshName].verticesSubMesh.Length];
+
+        // Converte os vertices de vector3 para serializableVector3
+        for (int i = 0; i < verticesArray.Length; i++) {
+            verticesArray[i] = new SerializableVector3 (
+                HashMap[meshName].verticesSubMesh[i].x,
+                HashMap[meshName].verticesSubMesh[i].y,
+                HashMap[meshName].verticesSubMesh[i].z
+            );
         }
-        else {
-            if (initialMeshesToSend != 0) {
-                print("Malha normal!");
-            }
-        }
-        
 
-        IDictionary<string, subMeshes> HashMapCopy = new Dictionary<string, subMeshes>();
-        HashMapCopy = HashMap;
+        // Impede que varias malhas de mesmo nome sejam criadas
 
-        foreach (KeyValuePair<String, subMeshes> submeshItem in HashMapCopy) {
-            // Console.WriteLine("chave: {0}, valor: {1}", submeshItem.Key, submeshItem.Value);
-            if (submeshItem.Value.hasJob && !submeshItem.Value.IsAlive) {
+        requestArray[0] = ObjectToByteArray(meshName);
+        requestArray[1] = ObjectToByteArray(verticesArray);
+        requestArray[2] = ObjectToByteArray(HashMap[meshName].trianglesSubMesh);
+        // O numero 0 indica que eh pra acontecer criacao de malhas
+        requestArray[3] = ObjectToByteArray(HashMap[meshName].task);
 
-                threadMeshJob = new Thread(() => {
-                    // Array de bytes a ser enviada com os dados das malhas
-                    byte[][] requestArray = new byte[4][];
+        print(  meshName
+                + " Tamanho vertices: "
+                + verticesArray.Count()
+                + " Tamanho triangulos: "
+                + HashMap[meshName].trianglesSubMesh.Count()
+                + " Task: "
+                + HashMap[meshName].task
+        );
 
-                    SerializableVector3[] verticesArray = new SerializableVector3[submeshItem.Value.verticesSubMesh.Length];
+        SessionManager.Broadcast(ObjectToByteArray(requestArray));
 
-                    // Converte os vertices de vector3 para serializableVector3
-                    for (int i = 0; i < verticesArray.Length; i++) {
-                        verticesArray[i] = new SerializableVector3 (
-                            submeshItem.Value.verticesSubMesh[i].x,
-                            submeshItem.Value.verticesSubMesh[i].y,
-                            submeshItem.Value.verticesSubMesh[i].z
-                        );
-                    }
+        subMeshes newSubmesh;
 
-                    // Impede que varias malhas de mesmo nome sejam criadas
+        newSubmesh.verticesSubMesh = HashMap[meshName].verticesSubMesh;
+        newSubmesh.trianglesSubMesh = HashMap[meshName].trianglesSubMesh;
+        newSubmesh.IsRunning = false;
+        newSubmesh.threadJob = HashMap[meshName].threadJob;
+        newSubmesh.task = HashMap[meshName].task;
 
-                    requestArray[0] = ObjectToByteArray(submeshItem.Key);
-                    requestArray[1] = ObjectToByteArray(verticesArray);
-                    requestArray[2] = ObjectToByteArray(submeshItem.Value.trianglesSubMesh);
-                    // O numero 0 indica que eh pra acontecer criacao de malhas
-                    requestArray[3] = ObjectToByteArray(submeshItem.Value.task);
-
-                    // print(
-                    //     submeshItem.Key.ToString()
-                    //         + " /tamanho vertices "
-                    //         + verticesArray.Count()
-                    //         + " /tamanho triangulos "
-                    //         + submeshItem.Value.trianglesSubMesh.Count()
-                    //         + "/criacao"
-                    // );
-
-                    SessionManager.Broadcast(ObjectToByteArray(requestArray));
-                    initialMeshesSent++;
-                    // }
-                });
-
-                subMeshes newSubmesh;
-                newSubmesh.verticesSubMesh = submeshItem.Value.verticesSubMesh;
-                newSubmesh.trianglesSubMesh = submeshItem.Value.trianglesSubMesh;
-                newSubmesh.IsAlive = threadMeshJob.IsAlive;
-                newSubmesh.hasJob = false;
-                newSubmesh.task = 0;
-
-                HashMap[submeshItem.Key] = newSubmesh;
-            
-                threadMeshJob.Start();
-
-            }
-        }
+        HashMap[meshName] = newSubmesh;
     }
 
     void sendActualMeshes() {
 
         initialMeshesToSend = 0;
-        initialMeshesSent = 0;
 
         foreach (Transform child in meshingNodesObject.transform) {
 
@@ -409,27 +454,51 @@ public class GetMeshVertexWS : MonoBehaviour {
             // getting triangles
             TrianglesArray = actualMesh.GetTriangles(0);
 
-            subMeshes newSubmesh;
-
-            newSubmesh.verticesSubMesh = tempverticesArray;
-            newSubmesh.trianglesSubMesh = TrianglesArray;
-            newSubmesh.hasJob = true;
-            newSubmesh.task = 3;
-
             initialMeshesToSend++;
             
 
             if(HashMap.ContainsKey(meshName)) {
-                newSubmesh.IsAlive = HashMap[meshName].IsAlive;
-                HashMap[meshName] = newSubmesh;
+                
+                try {
+                    if (!HashMap[meshName].IsRunning) {
+
+                        subMeshes newSubmesh;
+                        newSubmesh.verticesSubMesh = tempverticesArray;
+                        newSubmesh.trianglesSubMesh = TrianglesArray;
+                        newSubmesh.IsRunning = true;
+                        newSubmesh.threadJob = HashMap[meshName].threadJob;
+                        newSubmesh.task = 3;
+
+                        HashMap[meshName] = newSubmesh;
+                        //HashMap[meshName].threadJob.Abort();
+                        HashMap[meshName].threadJob.Start(meshName);
+                    }
+                }
+                catch (Exception msg) {
+                    print("Thread ja iniciada: " + msg);
+                }
+                
             }
 
             else {
-                newSubmesh.IsAlive = false;
+
+                threadMeshJob = new Thread(threadJobFunction);
+
+                subMeshes newSubmesh;
+
+                newSubmesh.verticesSubMesh = tempverticesArray;
+                newSubmesh.trianglesSubMesh = TrianglesArray;
+                newSubmesh.IsRunning = true;
+                newSubmesh.threadJob = threadMeshJob;
+                newSubmesh.task = 3;
+
                 HashMap.Add(meshName, newSubmesh);
-                // print("Tentou editar malha antes de criar no sendActualMeshes!");
+                //threadMeshJob.Abort();
+                threadMeshJob.Start(meshName);
             }
         }
+
+        SessionManager.Broadcast(ObjectToByteArray(initialMeshesToSend));
     }
 #endif
 
@@ -487,6 +556,7 @@ public class GetMeshVertexWS : MonoBehaviour {
             meshObj.GetComponent<Renderer>().material = white_material;
         }
         else if (receivedSubmeshesList[0].task == 3) {
+            initialMeshesReceived++;
             meshObj.GetComponent<Renderer>().material = green_material;
         }
         else {
@@ -504,3 +574,5 @@ public class GetMeshVertexWS : MonoBehaviour {
         Destroy(GameObject.Find(deleteMeshName));
     }
 }
+
+

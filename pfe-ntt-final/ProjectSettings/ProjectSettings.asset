@@ -234,7 +234,7 @@ PlayerSettings:
   androidSupportedAspectRatio: 1
   androidMaxAspectRatio: 2.1
   applicationIdentifier:
-    Lumin: com.DefaultCompany.TestVR
+    Lumin: com.Insper.NTT-DATA-PFE-FINAL
     Standalone: com.Insper.NTT-DATA-PFE-FINAL
   buildNumber:
     Standalone: 0
