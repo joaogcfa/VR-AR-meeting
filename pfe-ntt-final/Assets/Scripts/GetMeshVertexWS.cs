@@ -23,15 +23,17 @@ using System.Runtime.Serialization.Formatters.Binary;
 using System.Runtime.Serialization;
 using System.IO;
 
-// Servico teste chamado Laputa
+// Servico de comunicação com os clients chamado Laputa
 public class Laputa : WebSocketBehavior {
     protected override void OnMessage(MessageEventArgs e) {
-
+        // Assim que o server recebe a mensagem pedindo as malhas salvas na memoria ele para
+        // a atualização de malhas e envia as malhas salvas
         if (e.Data == "SendAll") {
             GetMeshVertexWS.stopAllAtt = true;
             GetMeshVertexWS.startGetMeshes = true;
             Debug.Log("Sending memory meshes!");
         }
+        // Assim que o client recebe todas as malhas planejadas o server retorna a enviar atualizações
         else {
             GetMeshVertexWS.stopAllAtt = false;
             Debug.Log("All memory meshes sent! Sending real time now!");
@@ -46,7 +48,7 @@ public class Laputa : WebSocketBehavior {
 
 public class GetMeshVertexWS : MonoBehaviour {
     
-    // Struct que contem os dados de cada submesh
+    // Struct que contem os dados de cada submesh a ser enviada
     [Serializable]
     public struct subMeshes {
         public Vector3[] verticesSubMesh;
@@ -56,6 +58,7 @@ public class GetMeshVertexWS : MonoBehaviour {
         public int task;
     }
 
+    // Struct que contem os dados de cada submesh a ser recebida
     [Serializable]
     public struct receivedSubMeshes {
         public string nameSubMesh;
@@ -136,8 +139,10 @@ public class GetMeshVertexWS : MonoBehaviour {
     #if UNITY_LUMIN
 
         try {
+            // Abre o server
             wssv = new WebSocketServer(serverAddress);
 
+            // Inicia o serviço de comunicação
             wssv.AddWebSocketService<Laputa>("/Laputa");
             wssv.Start();
 
@@ -152,15 +157,16 @@ public class GetMeshVertexWS : MonoBehaviour {
         Mapper.meshAdded += delegate(MeshId meshId) {
             string meshName = "Mesh " + meshId.ToString();
 
-            // getting mesh
+            // Pega a mesh com base no ID
             Mesh actualMesh = GameObject.Find(meshName).GetComponent<MeshFilter>().mesh;
 
-            // getting vertices from mesh
+            // Pega os vertices com base no ID
             Vector3[] tempverticesArray = actualMesh.vertices;
 
-            // getting triangles
+            // Pega os triangulos com base no ID
             int[] TrianglesArray = actualMesh.GetTriangles(0);
 
+            // Cria uma Thread que cria uma malha igual ao ID e envia
             if(!HashMap.ContainsKey(meshName) && !stopAllAtt) {
 
                 threadMeshJob = new Thread(threadJobFunction);
@@ -173,9 +179,9 @@ public class GetMeshVertexWS : MonoBehaviour {
                 newSubmesh.threadJob = threadMeshJob;
                 newSubmesh.task = 0;
 
+                // Adiciona a entrada no Hashmap
                 HashMap.Add(meshName, newSubmesh);
 
-                //threadMeshJob.Abort();
                 threadMeshJob.Start(meshName);
             }   
         };
@@ -189,17 +195,17 @@ public class GetMeshVertexWS : MonoBehaviour {
 
             string meshName = "Mesh " + meshId.ToString();
 
-            // getting mesh
+            // Pega a mesh com base no ID
             actualMesh = GameObject.Find(meshName).GetComponent<MeshFilter>().mesh;
 
-            // getting vertices from mesh
+            // Pega os vertices com base no ID
             tempverticesArray = actualMesh.vertices;
 
-            // getting triangles
+            // Pega os trinagulos com base no ID
             TrianglesArray = actualMesh.GetTriangles(0);
 
             if (!stopAllAtt) {
-
+                // Cria uma Thread que edita a malha que tem o ID e envia
                 if(HashMap.ContainsKey(meshName)) {
                     if(HashMap[meshName].threadJob.ThreadState == ThreadState.Stopped) {
 
@@ -212,13 +218,14 @@ public class GetMeshVertexWS : MonoBehaviour {
                             newSubmesh.threadJob = HashMap[meshName].threadJob;
                             newSubmesh.task = 1;
 
+                            // Edita a entrada no Hashmap
                             HashMap[meshName] = newSubmesh;
                             
                             HashMap[meshName].threadJob.Start(meshName);
                         }
+                        // Caso a Thread anterior não tenha sido encerrada cria uma nova
                         catch (Exception msg) {
                             print("Thread ja iniciada: " + msg);
-                            // HashMap[meshName].threadJob.Abort();
 
                             threadMeshJobReserve = new Thread(threadJobFunction);
 
@@ -235,9 +242,8 @@ public class GetMeshVertexWS : MonoBehaviour {
                         }
                     }
                 }
-
+                // Cria uma Thread que cria uma malha igual ao ID e envia
                 else {
-                    // print("Tentou editar malha antes de criar!");
 
                     threadMeshJob = new Thread(threadJobFunction);
 
@@ -264,7 +270,8 @@ public class GetMeshVertexWS : MonoBehaviour {
             Vector3[] verticesArray = new Vector3[0];
             int[] TrianglesArray = new int[0];
             int task = 2;
-
+            
+            // Cria uma Thread que deleta uma malha igual ao ID e envia pro client
             if(HashMap.ContainsKey(meshName) && !HashMap[meshName].IsRunning && !stopAllAtt) {
                 try {
                     subMeshes newSubmesh;
@@ -279,9 +286,8 @@ public class GetMeshVertexWS : MonoBehaviour {
                     
                     HashMap[meshName].threadJob.Start(meshName);
                 }
+                // Caso a Thread anterior não tenha sido encerrada cria uma nova
                 catch (Exception msg) {
-                    // print("Thread ja iniciada: " + msg);
-                    // HashMap[meshName].threadJob.Abort();
 
                     threadMeshJobReserve = new Thread(threadJobFunction);
 
@@ -299,6 +305,8 @@ public class GetMeshVertexWS : MonoBehaviour {
             }
         };
 
+    // Bloqueia temporariamente a atualização de malhas e envia as malhas
+    // salvas na memoria 
     if (startGetMeshes) {
         startGetMeshes = false;
         Invoke("sendActualMeshes", 1.0f);
@@ -313,11 +321,9 @@ public class GetMeshVertexWS : MonoBehaviour {
         initialMeshesToReceive = 0;
         initialMeshesReceived = 0;
 
-        // Funcao que checa se há malhas a serem criadas
-        // InvokeRepeating("MeshCreation", 5.0f, 0.01f);
-
         receivedSubmeshesList = new List<receivedSubMeshes>();
 
+        // Thread do client que cuida do recebimento de malhas
         thread = new Thread(() => {
             print("Thread Entered");
 
@@ -337,12 +343,12 @@ public class GetMeshVertexWS : MonoBehaviour {
             // Assim que o client recebe uma mensagem executa:
             ws.OnMessage += (sender, e) => {
                 try {
-                    // print("recebendo");
                     byte[][] receivedArray = new byte[4][];
                     receivedSubMeshes receivedMesh;
 
                     object obj = ByteArrayToObject(e.RawData);
 
+                    // Se o recebido for só um inteiro é o numero de malhas salvas na memoria
                     if (obj.GetType().Equals(typeof(System.Int32))) {
                         initialMeshesToReceive = (System.Int32)obj;
                     }
@@ -405,19 +411,22 @@ public class GetMeshVertexWS : MonoBehaviour {
 
     void Update() { 
         #if UNITY_LUMIN
+        // Bloqueia temporariamente a atualização de malhas e envia as malhas
+        // salvas na memoria 
         if (startGetMeshes) {
             startGetMeshes = false;
             Invoke("sendActualMeshes", 1.0f);
         }
         #endif
-        // print(initialMeshesReceived+"/"+initialMeshesToReceive);
         #if UNITY_STANDALONE_WIN
-                MeshCreation();
+            // Chama a criação de malhas pra ver se tem alguma malha na lista pra criar
+            MeshCreation();
         #endif
     }
 
 #if UNITY_LUMIN
 
+    // Thread que faz um pacote contendo as infos da malha e envia
     public void threadJobFunction(object thisMeshName) {
 
         string meshName = thisMeshName as String;
@@ -439,7 +448,7 @@ public class GetMeshVertexWS : MonoBehaviour {
         requestArray[0] = ObjectToByteArray(meshName);
         requestArray[1] = ObjectToByteArray(verticesArray);
         requestArray[2] = ObjectToByteArray(HashMap[meshName].trianglesSubMesh);
-        // O numero 0 indica que eh pra acontecer criacao de malhas
+        // Task é a tarefa a ser feita no client
         requestArray[3] = ObjectToByteArray(HashMap[meshName].task);
 
         print(  meshName
@@ -466,6 +475,7 @@ public class GetMeshVertexWS : MonoBehaviour {
                 break;
         }
 
+        // Envia o pacote
         SessionManager.Broadcast(ObjectToByteArray(requestArray));
 
         subMeshes newSubmesh;
@@ -479,6 +489,7 @@ public class GetMeshVertexWS : MonoBehaviour {
         HashMap[meshName] = newSubmesh;
     }
 
+    // Pega as malhas salvas na memoria e cria as threads pra enviar essas malhas
     void sendActualMeshes() {
 
         initialMeshesToSend = meshingNodesObject.transform.childCount;
@@ -494,13 +505,13 @@ public class GetMeshVertexWS : MonoBehaviour {
 
             string meshName = child.gameObject.name;
 
-            // getting mesh
+            // Pega a mesh com base no nome
             actualMesh = child.GetComponent<MeshFilter>().mesh;
 
-            // getting vertices from mesh
+            // Pega os vertices com base no nome
             tempverticesArray = actualMesh.vertices;
 
-            // getting triangles
+            // Pega os trinagulos com base no nome
             TrianglesArray = actualMesh.GetTriangles(0);
 
             initialMeshesToSend++;
@@ -523,9 +534,8 @@ public class GetMeshVertexWS : MonoBehaviour {
                         HashMap[meshName].threadJob.Start(meshName);
                     }
                 }
+                // Caso a Thread anterior não tenha sido encerrada cria uma nova
                 catch (Exception msg) {
-                    // print("Thread ja iniciada: " + msg);
-                    // HashMap[meshName].threadJob.Abort();
 
                     threadMeshJobReserve = new Thread(threadJobFunction);
 
@@ -542,7 +552,7 @@ public class GetMeshVertexWS : MonoBehaviour {
                 }
                 
             }
-
+            // Caso a malha não exista ainda cria ela no Hashmap
             else {
 
                 threadMeshJob = new Thread(threadJobFunction);
@@ -556,25 +566,28 @@ public class GetMeshVertexWS : MonoBehaviour {
                 newSubmesh.task = 3;
 
                 HashMap.Add(meshName, newSubmesh);
-                //threadMeshJob.Abort();
                 threadMeshJob.Start(meshName);
             }
         }
     }
 #endif
 
+#if UNITY_STANDALONE_WIN
+
+    // Se tiver malhas pra criar chama a CreateMesh
     void MeshCreation() {
         if (receivedSubmeshesList.Count() > 0) {
             CreateMesh();
         }
     }
 
+    // Cria a malha no client
     public void CreateMesh() {
-        //criando obj vazio com mesh filter
 
         GameObject MeshingNodes;
         GameObject meshObj;
 
+        // Se a malha ja existir apaga a antiga
         if (receivedSubmeshesList[0].task == 1) {
             DeleteMesh(receivedSubmeshesList[0].nameSubMesh);
         }
@@ -584,6 +597,7 @@ public class GetMeshVertexWS : MonoBehaviour {
             return;
         }
 
+        // Criando obj vazio com mesh filter
         meshObj = new GameObject(receivedSubmeshesList[0].nameSubMesh);
         MeshFilter meshfilter = meshObj.AddComponent<MeshFilter>();
         meshfilter.gameObject.AddComponent<MeshRenderer>();
@@ -611,6 +625,8 @@ public class GetMeshVertexWS : MonoBehaviour {
         newMesh.uv = TempUV;
 
         newMesh.triangles = receivedSubmeshesList[0].trianglesSubMesh;
+
+        // Materiais diferentes pra criação, edição e deleção de malhas
         if (receivedSubmeshesList[0].task == 1) {
             meshObj.GetComponent<Renderer>().material = red_material;
         }
@@ -631,9 +647,11 @@ public class GetMeshVertexWS : MonoBehaviour {
         receivedSubmeshesList.RemoveAt(0);
     }
 
+    // Deleta o mesh no client com base no id
     public void DeleteMesh(String deleteMeshName) {
         Destroy(GameObject.Find(deleteMeshName));
     }
+#endif
 }
 
 
